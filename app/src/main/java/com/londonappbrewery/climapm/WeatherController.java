@@ -2,6 +2,7 @@ package com.londonappbrewery.climapm;
 
 import android.Manifest;
 import android.content.Context;
+import android.content.Intent;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -10,6 +11,7 @@ import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
+import android.view.View;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -65,7 +67,13 @@ public class WeatherController extends AppCompatActivity {
 
 
         // TODO: Add an OnClickListener to the changeCityButton here:
-
+        changeCityButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Intent myIntent = new Intent(WeatherController.this, ChangeCityController.class);
+                startActivity(myIntent);
+            }
+        });
     }
 
 
@@ -73,17 +81,28 @@ public class WeatherController extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-
         Log.d(TAG, "onResume: called");
-        Log.d(TAG, "onResume: Getting weather for current location");
-        getWeatherForCurrentLocation();
+
+        Intent intent = getIntent();
+        String city = intent.getStringExtra("City");
+        if (city != null) {
+            getWeatherForNewCity(city);
+        } else {
+            Log.d(TAG, "onResume: Getting weather for current location");
+            getWeatherForCurrentLocation();
+        }
     }
 
 
     // TODO: Add getWeatherForNewCity(String city) here:
+    private void getWeatherForNewCity(String city) {
+        RequestParams params = new RequestParams();
+        params.put("q", city);
+        params.put("appid", APP_ID);
+        letsDoSomeNetworking(params);
+    }
 
 
-    // TODO: Add getWeatherForCurrentLocation() here:
     private void getWeatherForCurrentLocation() {
         mLocationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
         mLocationListener = new LocationListener() {
@@ -149,7 +168,6 @@ public class WeatherController extends AppCompatActivity {
         }
     }
 
-    // TODO: Add letsDoSomeNetworking(RequestParams params) here:
     private void letsDoSomeNetworking(RequestParams params) {
         AsyncHttpClient client = new AsyncHttpClient();
 
@@ -158,6 +176,8 @@ public class WeatherController extends AppCompatActivity {
             public void onSuccess(int statusCode, Header[] headers, JSONObject response) {
                 super.onSuccess(statusCode, headers, response);
                 Log.d(TAG, "onSuccess: Success. JSON: " + response.toString());
+                WeatherDataModel weatherData = WeatherDataModel.fromJson(response);
+                updateUI(weatherData);
             }
 
             @Override
@@ -172,11 +192,20 @@ public class WeatherController extends AppCompatActivity {
 
 
     // TODO: Add updateUI() here:
+    private void updateUI(WeatherDataModel weatherData) {
+        mTemperatureLabel.setText(weatherData.getTemperature());
+        mCityLabel.setText(weatherData.getCity());
 
+        int resourceId = getResources().getIdentifier(weatherData.getIconName(), "drawable", getPackageName());
+        mWeatherImage.setImageResource(resourceId);
+    }
 
+    @Override
+    protected void onPause() {
+        super.onPause();
 
-    // TODO: Add onPause() here:
-
-
-
+        if (mLocationManager != null) {
+            mLocationManager.removeUpdates(mLocationListener);
+        }
+    }
 }
